@@ -223,6 +223,7 @@ body.ledit #skb{min-width:44px;min-height:44px}body.ledit #pslots{min-width:28px
 body.ledit #hud{min-width:130px;min-height:44px}body.ledit #hb{min-width:120px;min-height:38px}body.ledit #dock{min-height:40px}
 body.ledit #joy{background:rgba(110,170,255,.16)!important;outline:2px dashed rgba(140,190,255,.8)!important}
 body.ledit #mxbtn{display:none!important}
+#tip{z-index:9990!important}
 </style><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet"></head><body>
 <canvas id="c"></canvas>
 <div id="dock" class="ui"></div><div id="hud" class="ui"></div><div id="tip" class="ui"></div><div id="hb" class="ui"></div>
@@ -976,7 +977,7 @@ Object.assign(TIP,{smelt:[[2,6,10,5,'#8a8f93'],[4,3,6,4,'#ff9a30']],make:[[2,7,1
 const SMELT=[['ing',{iron:1,coal:1},1],['stl',{ing:2,coal:2},1],['dgi',{diamond:1,stl:2,coal:3},1]];
 const ING={berry:{H:14},fruit:{H:20},flower:{H:6,R:8},steak:{H:30},meat:{H:8},fish0:{H:10},fish1:{H:14},fish2:{H:18},fish3:{H:30,N:20},coal:{T:20},iron:{S:25},diamond:{T:40,S:30,H:20},ing:{S:40,T:10},ess0:{N:45},ess1:{H:40},ess2:{R:14},ess3:{T:35},ess4:{S:45},ess5:{N:20,R:6},ess6:{S:25,T:25},ess7:{N:60}};
 let ALC=[],MK={s:'w',wt:0,k:0,v:0,t:1},DC={day:-1,stock:[],sold:{}};
-const pay=c=>Object.keys(c).forEach(k=>{if(k=='coin')COIN-=c[k];else add(k,-c[k])}),canPay=c=>Object.keys(c).every(k=>k=='coin'?COIN>=c[k]:(inv[k]||0)>=c[k]),costTxt=c=>Object.keys(c).filter(k=>c[k]).map(k=>c[k]+' '+(k=='coin'?'coins':nm(k))).join(', ');
+const lack=c=>Object.keys(c).filter(k=>c[k]>0&&(k=='coin'?COIN:(inv[k]||0))<c[k]).map(k=>{const need=c[k]-(k=='coin'?COIN:(inv[k]||0));return(k=='coin'?'Coins':nm(k))+' (need '+need+' more)'}),lackTip=c=>{const l=lack(c);if(!l.length)return 0;tip('Insufficient: '+l.join(', '));try{sfx('hurt')}catch(e){}return 1},pay=c=>Object.keys(c).forEach(k=>{if(k=='coin')COIN-=c[k];else add(k,-c[k])}),canPay=c=>Object.keys(c).every(k=>k=='coin'?COIN>=c[k]:(inv[k]||0)>=c[k]),costTxt=c=>Object.keys(c).filter(k=>c[k]).map(k=>c[k]+' '+(k=='coin'?'coins':nm(k))).join(', ');
 const mkCost=x=>{const q=cls(x.v||0);return{ing:2+x.t+q*2,stl:x.t>=3?Math.floor(x.t/2)+q:0,dgi:x.t>=7?x.t-6:0,coin:x.t*25+q*40}},gtmp=()=>({s:MK.s,t:MK.t,p:0,wt:MK.wt,k:MK.k,v:MK.s=='w'||MK.s=='o'?MK.v:0,e:-1,fx:0});
 const meltY=x=>({ing:1+Math.floor(x.t/2)+(x.p>>1),stl:x.t>=4?Math.floor((x.t-2)/2):0,dgi:x.t>=8?1:0,coin:x.t*10+x.p*15});
 const brewEff=l=>{const e={H:0,S:0,T:0,N:0,R:0},m=1+.25*(l.length-1);l.forEach(k=>{for(const a in ING[k])e[a]+=ING[k][a]});for(const a in e)e[a]=Math.round(e[a]*m);return e},brewKey=e=>'brew'+[e.H,e.S,e.T,e.N,e.R].join('_'),BEN=[['H','Healing'],['S','Swiftness'],['T','Power'],['N','Night Sight'],['R','Regeneration']],BCO=['#e0384a','#3a8ae8','#ff9a30','#b06aff','#4ac85a'];
@@ -1008,10 +1009,10 @@ const NSTP={
   h+=row(trainerIcon(),'<b>Coach Bram</b><br><small>"Pay me and I\'ll train your monsters!"</small>','')+'<h2>Buy a pet · '+COIN+' coins</h2>'+DC.stock.map((i,n)=>{const x=SP[i],p=cprice(x);return row(monIcon(x),`<span style="color:${RKC[x.rk]}">${x.name}</span><br><small>Lv ${Math.max(1,x.lvl-2)} · ${RLN[x.role]} · ${ELN[x.el]} · ${RKN[x.rk]} · ${p} coins</small>`,DC.sold[n]?'<small>SOLD</small>':btn('cbuy','data-i="'+n+'"','Buy',COIN>=p))}).join('');
   return h+'<h2>Your pets</h2>'+(PETS.map((p,i)=>{const x=SP[p.sp];return row(monIcon(x),`<span style="color:${RKC[x.rk]}">${pname(p)}</span><br><small>Lv ${p.lvl} · ${ELN[x.el]} · stage ${x.st+1}/3${i==AP?' · ACTIVE':''}<br>Train +1/+3/+5 Lv: ${[1,3,5].map(n=>tcost(p,n)<1e9?tcost(p,n)+'c':'max').join(' / ')}</small>`,wrapB([1,3,5].map(n=>btn('ctr','data-i="'+i+'" data-n="'+n+'"','+'+n,COIN>=tcost(p,n))).join('')+(i!=AP&&PETS.length>1?btn('csell','data-i="'+i+'"','Sell '+csell(p)+'c'):'')))}).join('')||'<p><small>No pets yet.</small></p>')}};
 const NSTA={
- smelt:d=>{const r=SMELT[+d.i];if(!near(26)||!Object.keys(r[1]).every(k=>(inv[k]||0)>=r[1][k]))return;Object.keys(r[1]).forEach(k=>add(k,-r[1][k]));add(r[0],r[2]);sfx('craft');rpanel()},
+ smelt:d=>{const r=SMELT[+d.i];if(!near(26)){tip('Need a furnace nearby');return}if(lackTip(r[1]))return;if(!Object.keys(r[1]).every(k=>(inv[k]||0)>=r[1][k]))return;Object.keys(r[1]).forEach(k=>add(k,-r[1][k]));add(r[0],r[2]);sfx('craft');rpanel()},
  melt:d=>{const i=+d.i,x=GEAR[i];if(!x||EQ[x.s]==i||!near(26))return;const y=meltY(x);['ing','stl','dgi'].forEach(k=>{if(y[k])add(k,y[k])});COIN+=cg(y.coin);GEAR.splice(i,1);for(const k in EQ){if(EQ[k]>i)EQ[k]--}sfx('craft');tip('Melted into '+costTxt(y));rpanel()},
  mks:d=>{MK.s=d.s;MK.k=0;MK.wt=0;rpanel()},mkw:d=>{MK.wt=+d.i;rpanel()},mkk:d=>{MK.k=+d.i;rpanel()},mkv:d=>{MK.v=(MK.v+ +d.d+20)%20;rpanel()},mkt:d=>{MK.t=+d.t;rpanel()},
- mkmake:()=>{if(!near(32))return;const x=gtmp(),c=mkCost(x);if(!canPay(c))return tip('Not enough ingots or coins');pay(c);GEAR.push(x);sfx('quest');tip('Crafted '+gname(x));rpanel()},
+ mkmake:()=>{if(!near(32))return;const x=gtmp(),c=mkCost(x);if(lackTip(c))return;pay(c);GEAR.push(x);sfx('quest');tip('Crafted '+gname(x));rpanel()},
  alcp:d=>{const i=ALC.indexOf(d.k);if(i>=0)ALC.splice(i,1);else if(ALC.length<3)ALC.push(d.k);rpanel()},alcc:()=>{ALC=[];rpanel()},
  alcb:()=>{if(!near(31)||!ALC.length||!ALC.every(k=>(inv[k]||0)>0))return;const k=brewKey(brewEff(ALC));ALC.forEach(q=>add(q,-1));add(k,1);ALC=ALC.filter(q=>(inv[q]||0)>0);sfx('craft');tip('Brewed '+brewName(k));rpanel()},
  cbuy:d=>{const i=+d.i,x=SP[DC.stock[i]],p=cprice(x);if(!near(33)||DC.sold[i]||COIN<p)return;if(!petRoom())return tip('Party full (6) and your pen has no room.');COIN-=p;{const wh=addPet({sp:x.i,lvl:Math.max(1,x.lvl-2),xp:0,t:Date.now()});if(AP<0&&wh=='party')AP=0}DEX[x.i]=2;DC.sold[i]=1;sfx('coin');tip('You bought '+x.name+'!');rpanel()},
@@ -2400,12 +2401,12 @@ const ACT={ctab:d=>{CT=d.c;rpanel()},worlds:()=>menu('worlds'),chars:()=>menu('c
   dx:d=>{DEXSEL=+d.i;rpanel()},dxb:()=>{DEXSEL=-1;rpanel()},dxs:d=>{DXS=d.k;rpanel()},trade:d=>{const a=NPCSEL,o=a.off[+d.i];if(!o||(inv[o[0]]||0)<o[1])return tip('Not enough '+nm(o[0]));add(o[0],-o[1]);add(o[2],o[3]);a.off.splice(+d.i,1);sfx('coin');rpanel()},
   chal:()=>{const a=NPCSEL;ADV=ADV.filter(x=>x!==a);const sp2={i:-3,adv:1,name:a.name,lvl:a.lvl,hp:30+a.lvl*18,atk:3+a.lvl*2,spd:30,beh:rnd()<.5?'melee':'charge',el:a.el,xp:20+a.lvl*8,sz:1,ty:-1,c:'#fff',d:'#000',hb:0};mobs.push(mkMob(sp2,a.x,a.y,{adv:1,ch:a.ch,aggro:1}));if(a.pet!=null)mobs.push(mkMob(SP[a.pet],a.x-14*a.f,a.y+4,{aggro:1}));togP();tip('Duel with '+a.name+(a.pet!=null?' and their '+SP[a.pet].name:'')+' begins!')},
   starter:d=>{PETS.push({sp:+d.i,lvl:5,xp:0,t:Date.now()});AP=0;DEX[+d.i]=2;ACT.resume();tip('Your starter joined you!')},close:()=>togP(),tab:d=>{PN=d.t;sfx('ui');rpanel()},
-  craft:d=>{const r=RC[d.i],b=BNCH;if(!Object.keys(r[2]).every(k=>(inv[k]||0)>=r[2][k])||(r[3]&&!b))return;Object.keys(r[2]).forEach(k=>add(k,-r[2][k]));add(r[0],r[1]);sfx('craft');rpanel()},
-  forge:d=>{const t=+d.t,c=fcost(t),e=d.s=='w'?FE:-1;if(!canF(t,e))return tip('Not enough materials');add('plank',-c.pl);add('iron',-c.iron);takeMats(c.mat);if(e>=0)add('ess'+e,-(1+t));COIN-=c.coin;const gr={s:d.s,t,p:0,e,v:Math.floor(rnd()*12),wt:d.s=='w'?FW:0,fx:rnd()<.25?1+Math.floor(rnd()*4):0};GEAR.push(gr);sfx('craft');tip('Forged '+gname(gr));rpanel()},
+  craft:d=>{const r=RC[d.i],b=BNCH;if(r[3]&&!b&&!lack(r[2]).length){tip('Need a workbench nearby');return}if(lackTip(r[2]))return;if(r[3]&&!b){tip('Need a workbench nearby');return}if(!Object.keys(r[2]).every(k=>(inv[k]||0)>=r[2][k])||(r[3]&&!b))return;Object.keys(r[2]).forEach(k=>add(k,-r[2][k]));add(r[0],r[1]);sfx('craft');rpanel()},
+  forge:d=>{const t=+d.t,c=fcost(t),e=d.s=='w'?FE:-1;if(!canF(t,e)){const L=[],mm=(lab,n,have)=>{if(n>0&&have<n)L.push(lab+' (need '+(n-have)+' more)')};mm(nm('plank'),c.pl,inv.plank||0);mm(nm('iron'),c.iron,inv.iron||0);mm('Monster materials',c.mat,mats());mm('Coins',c.coin,COIN);if(e>=0)mm(nm('ess'+e),1+t,inv['ess'+e]||0);tip('Insufficient: '+L.join(', '));try{sfx('hurt')}catch(_){}return}add('plank',-c.pl);add('iron',-c.iron);takeMats(c.mat);if(e>=0)add('ess'+e,-(1+t));COIN-=c.coin;const gr={s:d.s,t,p:0,e,v:Math.floor(rnd()*12),wt:d.s=='w'?FW:0,fx:rnd()<.25?1+Math.floor(rnd()*4):0};GEAR.push(gr);sfx('craft');tip('Forged '+gname(gr));rpanel()},
   equip:d=>{const x=GEAR[+d.i];EQ[x.s]=EQ[x.s]==+d.i?-1:+d.i;sfx('ui');rpanel()},
-  enh:d=>{const x=GEAR[+d.i],c=30*(x.p+1),f=x.p+1;if(COIN<c||(inv.iron||0)<f)return tip('Need '+c+' coins and '+f+' iron');COIN-=c;add('iron',-f);const ch=[1,.95,.9,.8,.7,.55,.4,.3,.2][x.p];if(rnd()<ch){x.p++;sfx('quest');tip('Success! '+gname(x))}else{sfx('hurt');if(x.p>=5){x.p--;tip('Failed... dropped to +'+x.p)}else tip('Enhancement failed.')}rpanel()},
+  enh:d=>{const x=GEAR[+d.i],c=30*(x.p+1),f=x.p+1;if(lackTip({coin:c,iron:f}))return;COIN-=c;add('iron',-f);const ch=[1,.95,.9,.8,.7,.55,.4,.3,.2][x.p];if(rnd()<ch){x.p++;sfx('quest');tip('Success! '+gname(x))}else{sfx('hurt');if(x.p>=5){x.p--;tip('Failed... dropped to +'+x.p)}else tip('Enhancement failed.')}rpanel()},
   abq:d=>{QUESTS.splice(+d.i,1);rpanel()},pset:d=>{AP=AP==+d.i?-1:+d.i;PETE=null;sfx('ui');rpanel()},
-  buy:d=>{const s=SHOP.find(x=>x[0]==d.k);if(COIN>=s[1]){COIN-=s[1];add(s[0],s[0]=='torch'?4:s[0]=='plank'?10:1);sfx('coin');rpanel()}},sell:d=>{COIN+=cg(VAL(d.k)*inv[d.k]);delete inv[d.k];dirty=1;sfx('coin');rpanel()},
+  buy:d=>{const s=SHOP.find(x=>x[0]==d.k);if(COIN<s[1]){lackTip({coin:s[1]});return}if(COIN>=s[1]){COIN-=s[1];add(s[0],s[0]=='torch'?4:s[0]=='plank'?10:1);sfx('coin');rpanel()}},sell:d=>{COIN+=cg(VAL(d.k)*inv[d.k]);delete inv[d.k];dirty=1;sfx('coin');rpanel()},
   acq:d=>{const n=NPCSEL,q=QO[n.id][+d.i];if(!q||QUESTS.length>=4)return;QUESTS.push(q);QO[n.id].splice(+d.i,1);if(!QO[n.id].length){n.done=(n.done||0)+1;QO[n.id]=genQuests(n)}sfx('ui');rpanel()},
   turn:d=>{const q=QUESTS[+d.i];if(q.t=='get'){if((inv[q.key]||0)<q.n)return;add(q.key,-q.n)}COIN+=cg(q.r.c);addXP(q.r.x);if(q.r.it)add(q.r.it[0],q.r.it[1]);QUESTS.splice(+d.i,1);sfx('quest');tip(`Quest complete! +${cg(q.r.c)} coins, +${q.r.x} XP`);rpanel()},
   fs:()=>{try{document.documentElement.requestFullscreen().then(()=>screen.orientation.lock('landscape')).catch(()=>{})}catch(e){}}};
@@ -2872,10 +2873,12 @@ applyAll();setTimeout(applyAll,300);
 /* ===== MULTIPLAYER: internet play with room codes (WebRTC via PeerJS). Host = authority for world + monsters. ===== */
 (()=>{
 const AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',VER=1;
-const MP=window.MPX={role:0,code:'',peers:new Map(),hostConn:null,peer:null,busy:0,status:''};
+const MP=window.MPX={retries:5,role:0,code:'',peers:new Map(),hostConn:null,peer:null,busy:0,status:''};
 const RP=window.MPRP=new Map(),MIRR=new Map(),PARTS=new Map(),LOG=[];
 let REAL=null,CUR=null,SEQ=0,APPLY=0,NOKILL=0,joinRes=null,lastEnv=0;
-const PCFG={debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:global.stun.twilio.com:3478'}]}};
+const pcfg=()=>{const ice=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},{urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+  try{const c=(localStorage.getItem('pr_turn')||'').split('|');if(c[0]&&/^turns?:/.test(c[0]))ice.unshift({urls:[c[0]],username:c[1]||'',credential:c[2]||''})}catch(e){}
+  return{debug:0,config:{iceServers:ice,iceCandidatePoolSize:4}}};
 const say=s=>{try{tip(s)}catch(e){}};
 const myName=()=>(P.name||'Player').slice(0,14);
 const rnd6=()=>Math.random().toString(36).slice(2,8);
@@ -2883,7 +2886,7 @@ const clean=s=>String(s==null?'':s).replace(/[<>&"]/g,'').slice(0,40);
 
 /* ---------- transport ---------- */
 function loadPeer(){return new Promise((res,rej)=>{if(window.Peer)return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';s.onload=()=>window.Peer?res():rej(new Error('PeerJS failed to load'));s.onerror=()=>rej(new Error('No internet? Could not load the connection library'));document.head.appendChild(s)})}
-function mkPeer(id){return new Promise((res,rej)=>{let done=0;const p=id?new Peer(id,PCFG):new Peer(PCFG),to=setTimeout(()=>{if(!done){done=1;try{p.destroy()}catch(e){}rej(new Error('Timed out reaching the matchmaking server'))}},15000);p.on('open',()=>{if(!done){done=1;clearTimeout(to);res(p)}});p.on('error',e=>{if(!done){done=1;clearTimeout(to);try{p.destroy()}catch(_){}rej(e)}else if(e&&e.type!='peer-unavailable')status('Connection problem: '+(e.type||e.message))})})}
+function mkPeer(id){return new Promise((res,rej)=>{let done=0;const p=id?new Peer(id,pcfg()):new Peer(pcfg()),to=setTimeout(()=>{if(!done){done=1;try{p.destroy()}catch(e){}rej(new Error('Timed out reaching the matchmaking server'))}},15000);p.on('open',()=>{if(!done){done=1;clearTimeout(to);res(p)}});p.on('error',e=>{if(!done){done=1;clearTimeout(to);try{p.destroy()}catch(_){}rej(e)}else if(e&&e.type!='peer-unavailable')status('Connection problem: '+(e.type||e.message))})})}
 function rawSend(c,o){try{if(c&&c.open!==false)c.send(o)}catch(e){}}
 function sendC(c,o){const s=JSON.stringify(o);if(s.length<14000){rawSend(c,o);return}const id=rnd6()+rnd6(),n=Math.ceil(s.length/12000);for(let i=0;i<n;i++)rawSend(c,{t:'~',id,i,n,d:s.slice(i*12000,(i+1)*12000)})}
 function reasm(m){let a=PARTS.get(m.id);if(!a){a={n:m.n,p:[],c:0};PARTS.set(m.id,a)}if(!a.p[m.i]){a.p[m.i]=m.d;a.c++}if(a.c<a.n)return null;PARTS.delete(m.id);try{return JSON.parse(a.p.join(''))}catch(e){return null}}
@@ -2906,7 +2909,7 @@ async function startHost(){
     if(!p)throw new Error('Could not reserve a room code');
     MP.peer=p;MP.code=code;MP.role=1;MP.peers.clear();RP.clear();
     p.on('connection',c=>{c.on('data',d=>{let m=d;if(m&&m.t=='~'){m=reasm(m);if(!m)return}hostRx(c,m)});const gone=()=>dropGuest(c);c.on('close',gone);c.on('error',gone)});
-    p.on('disconnected',()=>{try{p.reconnect()}catch(e){}});
+    p.on('disconnected',()=>{try{p.reconnect()}catch(e){}});try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>{MP.wl=w}).catch(()=>{})}catch(e){}
     status('Room '+code+' is open. Share the code with friends!');say('Room code: '+code)
   }catch(e){status('Could not host: '+(e&&(e.message||e.type)||e))}
   MP.busy=0;if(window.MPUI)MPUI.render()}
@@ -2938,9 +2941,18 @@ function hostHit(c,r,m){const mob=mobs.find(o=>o.mid===m.id);if(!mob||mob.gym!=n
 async function joinRoom(code){
   if(MP.role||MP.busy)return;code=String(code||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length<4){status('Enter the room code');return}
   MP.busy=1;status('Connecting...');
-  try{await loadPeer();const p=await mkPeer(null);MP.peer=p;
-    const c=p.connect('prr-'+code,{reliable:true,serialization:'json'});
-    await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('Room not found or unreachable')),15000);c.on('open',()=>{clearTimeout(to);res()});c.on('error',e=>{clearTimeout(to);rej(e)});p.on('error',e=>{clearTimeout(to);rej(new Error(e&&e.type=='peer-unavailable'?'Room not found':(e&&e.message)||'Connection error'))})});
+  try{await loadPeer();const p=await mkPeer(null);MP.peer=p;let c=null;
+    const tryOnce=()=>new Promise((res,rej)=>{let d=0;const cc=p.connect('prr-'+code,{reliable:true,serialization:'json'});
+      const fin=(f,v)=>{if(d)return;d=1;clearTimeout(to);f(v)};
+      const to=setTimeout(()=>{fin(rej,{code:'ice'});try{cc.close()}catch(e){}},20000);
+      cc.on('open',()=>fin(res,cc));cc.on('error',e=>fin(rej,{code:'err',e}));
+      p.on('error',e=>{if(e&&e.type=='peer-unavailable')fin(rej,{code:'nf'});else if(!d)fin(rej,{code:'err',e})})});
+    const tries=MP.retries||5;
+    for(let a=1;a<=tries&&!c;a++){status(a==1?'Connecting...':'Looking for the room... ('+a+'/'+tries+')');
+      try{c=await tryOnce()}catch(e){if(e&&e.code=='nf'&&a<tries){await new Promise(r=>setTimeout(r,2500));continue}
+        if(e&&e.code=='nf')throw new Error('Room code not found. Check the code, and make sure the host is still on their game screen with the room open.');
+        if(e&&e.code=='ice')throw new Error('Found the room but could not connect. Your two networks block direct connections. Try again, or use the same Wi-Fi, or add a relay server under Advanced.');
+        throw new Error((e&&e.e&&(e.e.message||e.e.type))||'Connection error')}}
     MP.hostConn=c;c.on('data',d=>{let m=d;if(m&&m.t=='~'){m=reasm(m);if(!m)return}guestRx(m)});
     const bye=()=>{if(MP.role==2)disconnected('Disconnected from the host')};c.on('close',bye);c.on('error',bye);
     status('Joining...');const w=await new Promise((res,rej)=>{joinRes=res;const to=setTimeout(()=>rej(new Error('Host did not answer')),20000);joinRes=v=>{clearTimeout(to);res(v)};sendC(c,{t:'hello',v:VER,n:myName(),ch:P.ch})});
@@ -3040,6 +3052,8 @@ setInterval(()=>{if(!MP.role||!pl)return;
     const m=[];for(const o of vis){if(Math.hypot(o.x-r.tx,o.y-r.ty)<520)m.push([o.mid,o.s.i,Math.round(o.x),Math.round(o.y),Math.round(o.hp),o.mhp,o.f,o.lvl,Math.round(o.sc*100),o.boss?1:0,o.shiny?1:0,o.h>0?1:0,o.aggro?1:0])}
     sendC(p.conn,{t:'st',p:pa.filter(a=>a[0]!==id),m});if(env)sendC(p.conn,{t:'env',time,wx:WX})}},100);
 let _ms=0;const MSEQ_=()=>++_ms;
+const keep=()=>{if(MP.role==1&&MP.peer&&MP.peer.disconnected&&!MP.peer.destroyed){try{MP.peer.reconnect()}catch(e){}}if(MP.role==1&&document.visibilityState=='visible'){try{if(navigator.wakeLock&&(!MP.wl||MP.wl.released))navigator.wakeLock.request('screen').then(w=>{MP.wl=w}).catch(()=>{})}catch(e){}}};
+setInterval(keep,3000);document.addEventListener('visibilitychange',keep);
 window.MPCORE={startHost,joinRoom,leaveNet,sendChat,LOG,RP,sendTo,bcast};
 })();
 
@@ -3088,9 +3102,9 @@ function render(){
     s+=`<h3>Multiplayer</h3><small>Play with friends over the internet. One player hosts their world; friends join with the room code.</small><div style="margin-top:8px">`;
     s+=`<button data-a="host" ${MP.busy||!playing?'disabled':''}>Host this world</button>`+(playing?'':'<small> (open a world first)</small>');
     s+=`</div><div class="rw" style="margin-top:6px"><input type="text" id="mpcode" class="gr" maxlength="6" placeholder="ROOM CODE" value="${esc(codeVal)}" style="text-transform:uppercase"><button data-a="join" ${MP.busy?'disabled':''}>Join</button></div>`;
-    s+=`<small>Joining creates a visitor copy of the host's world with your own character and pets.</small>`;
+    s+=`<small>Joining creates a visitor copy of the host's world with your own character and pets.</small><details style="margin-top:6px"><summary><small>Advanced: relay server</small></summary><small>Only needed if joining fails across different networks. Format: turn:host:443|username|password</small><div class="rw"><input type="text" id="mpturn" class="gr" placeholder="turn:host:443|user|password" value="${esc(localStorage.getItem('pr_turn')||'')}"><button data-a="saveturn">Save</button></div></details>`;
   }else{
-    s+=`<h3>${MP.role==1?'Hosting':'Visiting'} room</h3><div class="code">${esc(MP.code)}</div><small>${MP.role==1?'Friends enter this code under Multiplayer → Join.':'Connected to the host.'}</small>`;
+    s+=`<h3>${MP.role==1?'Hosting':'Visiting'} room</h3><div class="code">${esc(MP.code)}</div><small>${MP.role==1?'Friends enter this code under Multiplayer → Join.':'Connected to the host.'}</small>${MP.role==1?`<div><button data-a="copy">Copy code</button> <small>${MP.peer&&MP.peer.disconnected?'⚠ Reconnecting to the server...':'✓ Room is online'}</small></div><small style="color:#ffe08a">Keep this game open (don't switch apps) until your friend has joined.</small>`:''}`;
     s+=`<div style="margin-top:6px"><b>Players</b></div><div class="rw"><span class="gr">You (${esc(P.name||'Player')}) Lv${LV}</span></div>`;
     for(const r of RP.values())s+=`<div class="rw"><span class="gr">${esc(r.name)} Lv${r.lv}</span><button data-a="trade" data-id="${r.id}">Trade</button><button class="g" data-a="duel" data-id="${r.id}">Pet duel</button></div>`;
     if(!RP.size)s+='<small>Waiting for friends...</small>'}
@@ -3107,9 +3121,10 @@ ui.addEventListener('input',e=>{if(e.target.id=='mpcode')codeVal=e.target.value}
 ui.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.id=='mpt'){C.sendChat(e.target.value);e.target.value=''}});
 ui.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
   if(a=='close')close();else if(a=='host')C.startHost();else if(a=='join'){codeVal=$q('#mpcode').value;C.joinRoom(codeVal)}
-  else if(a=='leave'){C.leaveNet();render()}else if(a=='send'){const i=$q('#mpt');C.sendChat(i.value);i.value=''}
+  else if(a=='leave'){C.leaveNet();render()}else if(a=='copy'){try{navigator.clipboard.writeText(MP.code);say2('Code copied')}catch(e){}}else if(a=='saveturn'){try{localStorage.setItem('pr_turn',$q('#mpturn').value.trim());say2('Saved')}catch(e){}}else if(a=='send'){const i=$q('#mpt');C.sendChat(i.value);i.value=''}
   else if(a=='trade'){close();G.startTrade(b.dataset.id)}else if(a=='duel'){close();G.startDuel(b.dataset.id)}});
 btn.addEventListener('click',()=>open());
+setInterval(()=>{if(MP.role==1&&ui.style.display!='none')render()},2500);
 setInterval(()=>{const led=document.body.classList.contains('ledit'),mo=$q('#menu')&&getComputedStyle($q('#menu')).display=='flex',show=led||((typeof playing!='undefined'&&playing&&!panelOpen)&&!mo);btn.style.display=show?'block':'none'},400);
 window.MPUI={open,close,render,chat};
 
